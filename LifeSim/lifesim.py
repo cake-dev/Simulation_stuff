@@ -13,7 +13,7 @@ WIDTH, HEIGHT = 800, 800
 RADIUS = 10
 SPEED = 4  # Set the speed of the creature
 FPS = 30
-NUM_CREATURES = 50  # Number of creatures
+NUM_CREATURES = 20  # Number of creatures
 # COLLISION_COUNT = 0  # Number of collisions
 # Colors
 WHITE = (255, 255, 255)
@@ -51,6 +51,7 @@ clock = pygame.time.Clock()
 for creature in creatures:
     creature.state = torch.tensor([creature.x, creature.y, 0], dtype=torch.float)
     creature.action = 0
+
 
 # Game loop
 while True:
@@ -99,28 +100,31 @@ while True:
         nearby_creatures = len(creature.nearby_creatures)
 
         # Change direction
-        if creature.ticks >= FPS:
-            creature.ticks = 0
-            # Get the creature's current state
-            state = torch.tensor([creature.x, creature.y, nearby_creatures], dtype=torch.float)
-            # Use the model to get a probability distribution over the directions
-            probs = direction_net(state)
-            # Choose a direction based on the probabilities
-            directions = ['up', 'down', 'left', 'right']
-            creature.action = random.choices(range(4), weights=probs.detach().numpy())[0]
-            creature.direction = directions[creature.action]
-            # Randomly change the speed
-            if random.random() < 0.10:
-                creature.speed += random.randint(-1, 1)
-                print('{} speed changed to {}'.format(creature.name, creature.speed))
-            frame_counter = 0
-            # Calculate the reward
+        # if creature.ticks >= FPS:
+        creature.ticks = 0
+        # Get the creature's current state
+        state = torch.tensor([creature.x, creature.y, nearby_creatures], dtype=torch.float)
+        # Use the model to get a probability distribution over the directions
+        probs = direction_net(state)
+        # Choose a direction based on the probabilities
+        directions = ['up', 'down', 'left', 'right']
+        # creature.action = random.choices(range(4), weights=probs.detach().numpy())[0]
+        creature.action = random.choices(range(4), weights=probs.squeeze().detach().numpy())[0]
+        creature.direction = directions[creature.action]
+        # Randomly change the speed
+        if random.random() < 0.10:
+            creature.speed += random.randint(-1, 1)
+            # print('{} speed changed to {}'.format(creature.name, creature.speed))
+        frame_counter = 0
+        # Calculate the reward
         reward = -nearby_creatures  # Reward is negative number of nearby creatures
         # Update the model
         optimizer.zero_grad()
         action_probs = direction_net(prev_state)
-        loss = -torch.log(action_probs[prev_action]) * reward  # Negative log likelihood loss
+        loss = -torch.log(action_probs[0, prev_action]) * reward  # Negative log likelihood loss
+        loss = loss.mean()  # Take the mean of the loss
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(direction_net.parameters(), max_norm=1)
         optimizer.step()
         # Make sure speed is greater than 0
         creature.speed = max(creature.speed, 0)
@@ -146,37 +150,30 @@ while True:
         # creature.x = max(min(creature.x, WIDTH - RADIUS), RADIUS)
         # creature.y = max(min(creature.y, HEIGHT - RADIUS), RADIUS)
 
-        # Check for collisions with other creatures
-        for creature2 in creatures:
-            if creature != creature2:
-                if creature.collision_check(creature2):
-                    creature.collision_move(creature2)
-                    # print('Collision: {}'.format(COLLISION_COUNT))
-                    # COLLISION_COUNT += 1
-
-        # Check for nearby creatures within 100 pixels euclidean distance
+        # Check for collisions with other creatures and count nearby creatures
         creature.nearby_creatures = []
         for creature2 in creatures:
             if creature != creature2:
                 distance = ((creature.x - creature2.x) ** 2 + (creature.y - creature2.y) ** 2) ** 0.5
                 if distance < 100:
                     creature.nearby_creatures.append(creature2)
+                    # print('{} near {}'.format(creature.name, creature2.name))
+                if creature.collision_check(creature2):
+                    creature.collision_move(creature2)
+                    # print('Collision: {}'.format(COLLISION_COUNT))
+                    # COLLISION_COUNT += 1
 
-    # Check for collisions with the player
-    for creature in creatures:
-        if creature.collision_check(player):
-            creature.collision_move(player)
-            player.collision_move(creature)
-            # print('Collision: {}'.format(COLLISION_COUNT))
-            # COLLISION_COUNT += 1
-
-    # Check for nearby creatures within 100 pixels euclidean distance
-    player.nearby_creatures = []
+    # Check for collisions with the player and count nearby creatures
     for creature in creatures:
         distance = ((player.x - creature.x) ** 2 + (player.y - creature.y) ** 2) ** 0.5
         if distance < 100:
             player.nearby_creatures.append(creature)
             print('Player near {}'.format(creature.name))
+        if creature.collision_check(player):
+            creature.collision_move(player)
+            player.collision_move(creature)
+            # print('Collision: {}'.format(COLLISION_COUNT))
+            # COLLISION_COUNT += 1
 
     # Draw everything
     screen.fill((0, 0, 0))

@@ -13,7 +13,7 @@ class Creature:
         self.color = color
         self.nearby_creatures = []
         self.ticks = 0
-        self.action = None
+        self.action = 0
 
     def move(self, direction):
         if direction == 'up':
