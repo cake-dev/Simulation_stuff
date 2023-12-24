@@ -13,7 +13,7 @@ WIDTH, HEIGHT = 800, 800
 RADIUS = 10
 SPEED = 4  # Set the speed of the creature
 FPS = 30
-NUM_CREATURES = 20  # Number of creatures
+NUM_CREATURES = 40  # Number of creatures
 # COLLISION_COUNT = 0  # Number of collisions
 # Colors
 WHITE = (255, 255, 255)
