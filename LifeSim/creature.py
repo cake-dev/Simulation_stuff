@@ -1,7 +1,7 @@
 # creature.py
 
 import pygame
-from direction_nn import DirectionNN
+from direction_nn import DirectionNet
 
 class Creature:
     def __init__(self, x, y, speed, radius, color, name, direction='up'):
@@ -15,7 +15,7 @@ class Creature:
         self.nearby_creatures = []
         self.ticks = 0
         self.action = 0
-        self.brain = DirectionNN()
+        self.brain = DirectionNet()
 
     def move(self, direction):
         if direction == 'up':
